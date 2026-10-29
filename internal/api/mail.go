@@ -316,6 +316,9 @@ func (a *API) sendConfirmation(r *http.Request, tx *storage.Connection, u *model
 	}
 	oldToken := u.ConfirmationToken
 	otp := crypto.GenerateOtp(otpLength)
+	if testOTP, ok := config.Mailer.GetTestOTP(u.GetEmail(), time.Now()); ok {
+		otp = testOTP
+	}
 
 	token := crypto.GenerateTokenHash(u.GetEmail(), otp)
 	u.ConfirmationToken = addFlowPrefixToToken(token, flowType)
@@ -459,6 +462,9 @@ func (a *API) sendMagicLink(r *http.Request, tx *storage.Connection, u *models.U
 
 	oldToken := u.RecoveryToken
 	otp := crypto.GenerateOtp(otpLength)
+	if testOTP, ok := config.Mailer.GetTestOTP(u.GetEmail(), time.Now()); ok {
+		otp = testOTP
+	}
 
 	token := crypto.GenerateTokenHash(u.GetEmail(), otp)
 	u.RecoveryToken = addFlowPrefixToToken(token, flowType)
@@ -633,6 +639,13 @@ func (a *API) sendEmail(r *http.Request, tx *storage.Connection, u *models.User,
 				metric.WithAttributeSet(attribute.NewSet(attribute.String("path", r.URL.Path))),
 			)
 			return EmailRateLimitExceeded
+		}
+	}
+
+	// Test codes still use the normal token storage, expiry and verification.
+	if emailActionType == mail.SignupVerification || emailActionType == mail.MagicLinkVerification {
+		if testOTP, ok := config.Mailer.GetTestOTP(u.GetEmail(), time.Now()); ok && otp == testOTP {
+			return nil
 		}
 	}
 

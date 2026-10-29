@@ -461,6 +461,9 @@ type MailerConfiguration struct {
 
 	OtpExp    uint `json:"otp_exp" split_words:"true"`
 	OtpLength int  `json:"otp_length" split_words:"true"`
+	// Explicit test accounts only; leave empty on production servers.
+	TestOTP           map[string]string `json:"test_otp" split_words:"true"`
+	TestOTPValidUntil Time              `json:"test_otp_valid_until" split_words:"true"`
 
 	ExternalHosts []string `json:"external_hosts" split_words:"true"`
 
@@ -472,6 +475,14 @@ type MailerConfiguration struct {
 
 	serviceHeaders   map[string][]string `json:"-"`
 	blockedMXRecords map[string]bool     `json:"-"`
+}
+
+func (c *MailerConfiguration) GetTestOTP(email string, now time.Time) (string, bool) {
+	if !c.TestOTPValidUntil.Time.IsZero() && !now.Before(c.TestOTPValidUntil.Time) {
+		return "", false
+	}
+	otp := c.TestOTP[strings.ToLower(email)]
+	return otp, otp != ""
 }
 
 func (c *MailerConfiguration) Validate() error {

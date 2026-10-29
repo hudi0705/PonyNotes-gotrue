@@ -807,6 +807,12 @@ func (a *API) verifyUserAndToken(conn *storage.Connection, params *VerifyParams,
 	}
 
 	var isValid bool
+	// The desktop SDK uses magiclink for both signup and subsequent OTP login.
+	if params.Type == mail.MagicLinkVerification {
+		if _, ok := config.Mailer.GetTestOTP(params.Email, time.Now()); ok {
+			params.Type = mail.EmailOTPVerification
+		}
+	}
 
 	smsProvider, _ := sms_provider.GetSmsProvider(*config)
 	switch params.Type {
